@@ -9,11 +9,17 @@
 // #include <time.h>
 #include <unistd.h>
 #include "mytime.h"
+#include <sys/stat.h>
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <errno.h>
 
 
 #define PUT_ 0
 #define GET_ 1
 #define SCAN_ 2
+#define GB ((uint64_t)1<<30)
 
 // #ifdef _GNU_SOURCE
 // # undef  _XOPEN_SOURCE
@@ -51,6 +57,7 @@ void print_scan(char**, uint64_t, uint64_t, FILE*);
 //   }
 //   return temp.tv_sec + (double) temp.tv_nsec / 1000000000.0;
 // }
+extern errno;
 
 
 int main(int argc, char* argv[]){
@@ -59,12 +66,12 @@ int main(int argc, char* argv[]){
     FILE* fop = fopen(inputFilePath, "r");
 
     char* token, *filename, *inputFilename;
-    printf("%d\n", strlen(inputFilePath));
+    // printf("%d\n", strlen(inputFilePath));
     char* cur = inputFilePath + strlen(inputFilePath) - 1;
     while(*cur != '/' && cur-- != inputFilePath);
     cur++;
     inputFilename = malloc(sizeof(char) * 100);
-    printf("%s\n", cur);
+    // printf("%s\n", cur);
     strcpy(inputFilename, cur);
     filename = strtok(inputFilename, ".");
     char* outputFile = malloc(sizeof(char) * 100);
@@ -92,49 +99,160 @@ int main(int argc, char* argv[]){
     struct timespec P_s, P_e;
     struct timespec G_s, G_e;
     uint64_t P_c = 0, G_c = 0;
-    while(fscanf(fop, "%[^\n]\n", cmd) != EOF){
-        if(i++ % 1000000 == 0){
-            printf("%llu\n", i);
+
+
+    int fd = open(inputFilePath, O_RDWR);
+    if(fd < 0){
+        printf("open failed, errno : %d\n", errno);
+        exit(0);
+    }
+
+    struct stat statbuf;
+    int err = fstat(fd, &statbuf);
+    if(err < 0){
+        printf("fstat error\n");
+        exit(1);
+    }
+
+    int32_t offt_times = (statbuf.st_size >> 30) + 1;
+
+    // printf("Total times %d\n", offt_times);
+
+    char* str_buf = malloc(sizeof(char) * 200);
+    char* str_cur = str_buf;
+    memset(str_buf, '\0', 200);
+    uint64_t cmd_num = 0;
+    time_t sT = time(NULL);
+    for(int64_t times = 0; times<offt_times;times++){
+        // printf("%d\n", times);
+        char* ptr = mmap(NULL, GB, PROT_READ|PROT_WRITE, MAP_SHARED, fd, times << 30);
+        if(ptr == MAP_FAILED){
+            printf("mmap failed\n");
+            exit(2);
         }
-        switch(parse_cmd(cmd, &key1, &key2, &value)){
-            case PUT_:
-                // printf("PUT %llu %s\n", key1, value);
-                P_c++;
-                clock_gettime(CLOCK_MONOTONIC, &P_s);
-                PUT(key1, value, &db);
-                clock_gettime(CLOCK_MONOTONIC, &P_e);
-                P_ave += diff(P_s, P_e);
-                // printf("PUT %llu\n", i++);
-                break;
-            case GET_:
-                // printf("GET %llu\n", key1);
-                // if(key1 == 19692347){
-                //     printf("GET %llu\n", key1);
-                // }
-                G_c++;
-                // printf("GET %llu\n", i++);
-                clock_gettime(CLOCK_MONOTONIC, &G_s);
-                return_val = GET(key1, &db);
-                clock_gettime(CLOCK_MONOTONIC, &G_e);
-                G_ave += diff(G_s, G_e);
-                fprintf(out_stream, "%s\n", return_val == NULL ? "EMPTY" : return_val);
-                fflush(out_stream);
-                break;
-            case SCAN_:
-                for(uint64_t key=key1;key<=key2;key++){
-                    return_val = GET(key, &db);
-                    fprintf(out_stream, "%s\n", return_val == NULL ? "EMPTY" : return_val);
+
+        off_t buf_size = GB;
+        if(times == offt_times -1 || GB > statbuf.st_size){
+            buf_size = (statbuf.st_size & 0x000000003fffffff);
+        }
+
+        off_t dx = 0;
+        char* t_ptr = ptr;
+        // char* str_cur = str_buf;
+        // memset(str_buf, '\0', 200);
+        // printf("buf_size %d\n", buf_size);
+        // printf("*ptr %c\n", *ptr);
+        printf("%d\n", buf_size);
+        while(dx < buf_size){
+            dx++;
+            // printf("%d/%d\n", dx, buf_size);
+            if(*t_ptr != '\n' && !(dx == buf_size && times == offt_times - 1)){
+                *str_cur++ = *t_ptr++;
+            }else{
+                if(dx == buf_size && (times == offt_times - 1) && *t_ptr != '\n'){
+                    *str_cur++ = *t_ptr++;
+                }else{
+                    t_ptr++;
                 }
-                // printf("SCAN %llu %llu\n", key1, key2);
-                // str_list = scan_skiplist(&skiplist_head, key1, key2);
-                // print_scan(str_list, key1, key2, out_stream);
-                break;
+                if(cmd_num++ % 100000 == 0){
+                    printf("Time elapsed %d\n", time(NULL) - sT);
+                    sT = time(NULL);
+                }
+                // printf("cmd line %llu\n", cmd_num++);
+                switch(parse_cmd(str_buf, &key1, &key2, &value)){
+                    case PUT_:
+                        // printf("PUT %llu %s\n", key1, value);
+                        P_c++;
+                        clock_gettime(CLOCK_MONOTONIC, &P_s);
+                        PUT(key1, value, &db);
+                        clock_gettime(CLOCK_MONOTONIC, &P_e);
+                        P_ave += diff(P_s, P_e);
+                        // printf("PUT %llu\n", i++);
+                        // printf("")
+                        break;
+                    case GET_:
+                        // printf("GET %llu\n", key1);
+                        // if(key1 == 19692347){
+                        //     printf("GET %llu\n", key1);
+                        // }
+                        // G_c++;
+                        // // printf("GET %llu\n", i++);
+                        clock_gettime(CLOCK_MONOTONIC, &G_s);
+                        return_val = GET(key1, &db);
+                        clock_gettime(CLOCK_MONOTONIC, &G_e);
+                        G_ave += diff(G_s, G_e);
+                        // fprintf(out_stream, "%s\n", return_val == NULL ? "EMPTY" : return_val);
+                        // fflush(out_stream);
+                        break;
+                    case SCAN_:
+                        // for(uint64_t key=key1;key<=key2;key++){
+                        //     return_val = GET(key, &db);
+                        //     fprintf(out_stream, "%s\n", return_val == NULL ? "EMPTY" : return_val);
+                        // }
+                        // printf("SCAN %llu %llu\n", key1, key2);
+                        // str_list = scan_skiplist(&skiplist_head, key1, key2);
+                        // print_scan(str_list, key1, key2, out_stream);
+                        break;
+                }
+
+                memset(str_buf, '\0', 200);
+                str_cur = str_buf;
+            }
+        }
+
+        int err = munmap(ptr, buf_size);
+        if(err != 0){
+            printf("nummap is not suess\n");
         }
     }
-    time_t endT = time(NULL);
+
+    startT = time(NULL);
+    // time_t endT;
+    // while(fscanf(fop, "%[^\n]\n", cmd) != EOF){
+    //     if(i++ % 100000 == 0){
+    //         printf("%llu, %d\n", i, time(NULL) - startT);
+    //         startT = time(NULL);
+    //     }
+    //     // printf("%llu\n", i++);
+    //     switch(parse_cmd(cmd, &key1, &key2, &value)){
+    //         case PUT_:
+    //             // printf("PUT %llu %s\n", key1, value);
+    //             P_c++;
+    //             clock_gettime(CLOCK_MONOTONIC, &P_s);
+    //             PUT(key1, value, &db);
+    //             clock_gettime(CLOCK_MONOTONIC, &P_e);
+    //             P_ave += diff(P_s, P_e);
+    //             // printf("PUT %llu\n", i++);
+    //             break;
+    //         case GET_:
+    //             // printf("GET %llu\n", key1);
+    //             // if(key1 == 19692347){
+    //             //     printf("GET %llu\n", key1);
+    //             // }
+    //             G_c++;
+    //             // printf("GET %llu\n", i++);
+    //             clock_gettime(CLOCK_MONOTONIC, &G_s);
+    //             return_val = GET(key1, &db);
+    //             clock_gettime(CLOCK_MONOTONIC, &G_e);
+    //             G_ave += diff(G_s, G_e);
+    //             fprintf(out_stream, "%s\n", return_val == NULL ? "EMPTY" : return_val);
+    //             fflush(out_stream);
+    //             break;
+    //         case SCAN_:
+    //             // for(uint64_t key=key1;key<=key2;key++){
+    //             //     return_val = GET(key, &db);
+    //             //     fprintf(out_stream, "%s\n", return_val == NULL ? "EMPTY" : return_val);
+    //             // }
+    //             // printf("SCAN %llu %llu\n", key1, key2);
+    //             // str_list = scan_skiplist(&skiplist_head, key1, key2);
+    //             // print_scan(str_list, key1, key2, out_stream);
+    //             break;
+    //     }
+    // }
+    // time_t endT = time(NULL);
     db_end(&db);
-    printf("Execution time %d\n", endT- startT);
-    // print_skiplist(meta->head, 4);
+    // printf("Execution time %d\n", endT- startT);
+    // // print_skiplist(meta->head, 4);
 
     printf("PUT : %e sec\n", P_ave / P_c);
     printf("GET : %e sec\n", G_ave / G_c);
@@ -197,10 +315,11 @@ int parse_cmd(char* str, uint64_t* key1, uint64_t* key2, char** val){
                     *val = NULL;
                     break;
             }
-
+            free(new_str);
             return i;
         }
     }
+    free(new_str);
     return -1;
 }
 

@@ -525,3 +525,18 @@ void* skiplist_manager(void* arg){
     // change the skiplist to imm
 
 }
+
+void free_skiplist(skiplist_meta_ptr_t node, int height){
+
+    struct list_head* h;
+    skiplist_ptr_t item, safe;
+    for(int i=0;i<height;i++){
+        h = &node->head[i];
+        list_for_each_entry_safe(item, safe, h, list){
+            list_del_init(&item->list);
+            free(item->val);
+            free(item);
+        }
+    }
+    free(node);
+}

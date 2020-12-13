@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "__hash_table": "c",
+        "functional": "c",
+        "iterator": "c",
+        "string": "c",
+        "unordered_map": "c",
+        "vector": "c"
+    }
+}

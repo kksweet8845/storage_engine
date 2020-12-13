@@ -103,5 +103,7 @@ void check_skiplist_consistence(struct list_head*, int);
 
 void* skiplist_manager(void*);
 
+void free_skiplist(skiplist_meta_ptr_t, int);
+
 
 #endif
