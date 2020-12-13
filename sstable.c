@@ -47,7 +47,8 @@ sstable_node_ptr_t create_sstable_node(
     sstable_node_ptr_t ss_node = malloc(sizeof(sstable_node_t));
     ss_node->id = id;
     ss_node->dbname = _strdup(dbname);
-    ss_node->filename = _strdup(sstable_filename(ss_node->dbname, lv, ss_node->id));
+    // ss_node->filename = _strdup(sstable_filename(ss_node->dbname, lv, ss_node->id));
+    ss_node->filename = sstable_filename(ss_node->dbname, lv, ss_node->id);
     ss_node->keyfrom = keyfrom;
     ss_node->keyto = keyto;
     ss_node->empty = 1;
