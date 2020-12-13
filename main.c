@@ -175,7 +175,7 @@ int main(int argc, char* argv[]){
                         // if(key1 == 19692347){
                         //     printf("GET %llu\n", key1);
                         // }
-                        // G_c++;
+                        G_c++;
                         // // printf("GET %llu\n", i++);
                         clock_gettime(CLOCK_MONOTONIC, &G_s);
                         return_val = GET(key1, &db);
@@ -194,7 +194,7 @@ int main(int argc, char* argv[]){
                         // print_scan(str_list, key1, key2, out_stream);
                         break;
                 }
-
+                free(value);
                 memset(str_buf, '\0', 200);
                 str_cur = str_buf;
             }
@@ -255,12 +255,17 @@ int main(int argc, char* argv[]){
     // // print_skiplist(meta->head, 4);
 
     printf("PUT : %e sec\n", P_ave / P_c);
-    printf("GET : %e sec\n", G_ave / G_c);
+    if(G_c != 0){
+        printf("GET : %e sec\n", G_ave / G_c);
 
-    printf("SKIPLIST %e sec\n", db.skiplist_time / db.skiplist_c);
-    printf("SKIPLIST IMM %e sec\n", db.skiplist_imm_time / db.skiplist_imm_c);
-    printf("SSTABLE %e sec\n", db.sstable_time / db.sstable_c);
+        printf("SKIPLIST %e sec\n", db.skiplist_time / db.skiplist_c);
+        printf("SKIPLIST IMM %e sec\n", db.skiplist_imm_time / db.skiplist_imm_c);
+        printf("SSTABLE %e sec\n", db.sstable_time / db.sstable_c);
+    }
 
+    free(inputFilename);
+    free(outputFile);
+    free(str_buf);
     return 0;
 }
 
@@ -320,6 +325,7 @@ int parse_cmd(char* str, uint64_t* key1, uint64_t* key2, char** val){
         }
     }
     free(new_str);
+    free(buf);
     return -1;
 }
 

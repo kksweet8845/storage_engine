@@ -212,7 +212,6 @@ void read_sstable(char* filename, struct list_head* key_val_head){
 
     uint32_t magic_number;
     uint64_t data_offset;
-    char* buffer = malloc(sizeof(char) * 200);
     fread(&data_offset, sizeof(uint64_t), 1, fp_cur);
     // printf("%llu\n", *(uint64_t*)buffer);
     // printf("%d\n", FOOTER_FIXED_LENGTH - sizeof(uint32_t));
@@ -225,7 +224,6 @@ void read_sstable(char* filename, struct list_head* key_val_head){
     uint64_t key;
     unsigned char val_len;
     char* val = malloc(sizeof(char)*200);
-    char* buf = malloc(sizeof(char)*200);
     // fseek(fp, 0, SEEK_SET);
     fseek(fp_cur, 0, SEEK_SET);
     struct data_block {
@@ -254,6 +252,7 @@ void read_sstable(char* filename, struct list_head* key_val_head){
         list_add_tail(&node->list, key_val_head);
     }
     // printf("read sstable length %llu\n", data_offset);
+    free(val);
     fclose(fp);
 
 }
