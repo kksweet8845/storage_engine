@@ -7,8 +7,8 @@
 #include <pthread.h>
 #include <stdint.h>
 
-#define DEFAULT_SKIPLIST_SIZE ((uint32_t)0x40000)
-#define MAX_TABLE_NUM 4
+#define DEFAULT_SKIPLIST_SIZE ((uint32_t)0x80000)
+#define MAX_TABLE_NUM 11
 
 typedef struct DB_ {
     struct list_head SSTABLE_manager_head;
@@ -30,7 +30,7 @@ typedef struct DB_ {
 
 typedef db_impl_t* db_impl_ptr_t;
 
-pthread_t db_manager_thread;
+pthread_t db_manager_thread, sstable_manager_thread;
 
 pthread_mutex_t skiplist_mutex;
 pthread_mutex_t sstable_mutex;

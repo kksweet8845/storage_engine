@@ -57,6 +57,7 @@ typedef sstable_manager_t* sstable_manager_ptr_t;
 void init_sstable_manager(struct list_head*);
 void add_sstable_manager(struct list_head*);
 
+void create_sstable_manager(struct list_head* manager_head, int lv, int n);
 sstable_node_ptr_t create_sstable_node(
     uint64_t keyfrom, uint64_t keyto,
     int id, char* dbname, uint32_t lv);

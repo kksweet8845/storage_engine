@@ -37,6 +37,7 @@ void init_db(db_impl_ptr_t db, int height){
     init_mutex();
     // printf("%p\n", db);
     pthread_create(&db->db_manager_thread, NULL, db_manager, (void*)db);
+    // pthread_create(&db->db_manager_thread, NULL, sstable_manager, (void*)db);
 }
 
 void init_mutex(){
@@ -153,13 +154,13 @@ void* db_manager(void* arg){
     INIT_LIST_HEAD(&key_val_head);
     struct list_head* node;
     FILE* db_log;
-    db_log = fopen("db.log", "w");
+    // db_log = fopen("db.log", "w");
     while(db->end == 0){
         pthread_mutex_lock(&skiplist_mutex);
         skiplist_node = list_first_entry(&db->SKIPLIST_meta_head, skiplist_meta_t, list);
         if(skiplist_node->size >= DEFAULT_SKIPLIST_SIZE){
             // metex
-            // printf("SKIPLIST move to imm\n");
+            // printf("SKIPLIST move to imm skipliist size %llu KB\n", skiplist_node->size >> 10);
             // printf("length %llu\n", skiplist_node->size / 138);
             pthread_mutex_lock(&skiplist_imm_mutex);
             skiplist_to_imm(&db->SKIPLIST_meta_head, &db->SKIPLIST_IMM_meta_head);
@@ -173,14 +174,12 @@ void* db_manager(void* arg){
         // pthread_mutex_unlock(&skiplist_imm_mutex);
         if( i >= MAX_TABLE_NUM ){
             // save two imm table to disk
-            fprintf(db_log, "IMM TABLE to sstable\n");
+            // fprintf(db_log, "IMM TABLE to sstable\n");
             pthread_mutex_lock(&skiplist_imm_mutex);
             skiplist_meta_ptr_t item = list_last_entry(&db->SKIPLIST_IMM_meta_head, skiplist_meta_t, list);
-            // check_skiplist_consistence(item->head, 4);
-            // print_skiplist(item->head, 4);
-            skiplist_to_keyValPair(item->head, &key_val_head);
             list_del_init(&item->list);
             pthread_mutex_unlock(&skiplist_imm_mutex);
+            skiplist_to_keyValPair(item->head, &key_val_head);
             pthread_mutex_lock(&sstable_mutex);
             add_sstable_node(&db->SSTABLE_manager_head, 0, &key_val_head);
             pthread_mutex_unlock(&sstable_mutex);
@@ -197,3 +196,34 @@ void db_end(db_impl_ptr_t db) {
     pthread_join(db->db_manager_thread, NULL);
 }
 
+
+void* sstable_manager(void* arg){
+    db_impl_ptr_t db = (db_impl_ptr_t) arg;
+
+    skiplist_meta_ptr_t skiplist_node;
+    struct list_head key_val_head;
+    INIT_LIST_HEAD(&key_val_head);
+    struct list_head* node;
+    FILE* db_log;
+    // db_log = fopen("db.log", "w");
+    while(db->end == 0){
+        int i=0;
+        // pthread_mutex_lock(&skiplist_imm_mutex);
+        list_for_each(node, &db->SKIPLIST_IMM_meta_head) i++;
+        // pthread_mutex_unlock(&skiplist_imm_mutex);
+        if( i >= MAX_TABLE_NUM ){
+            // save two imm table to disk
+            pthread_mutex_lock(&skiplist_imm_mutex);
+            skiplist_meta_ptr_t item = list_last_entry(&db->SKIPLIST_IMM_meta_head, skiplist_meta_t, list);
+            list_del_init(&item->list);
+            pthread_mutex_unlock(&skiplist_imm_mutex);
+            skiplist_to_keyValPair(item->head, &key_val_head);
+            // pthread_mutex_lock(&sstable_mutex);
+            add_sstable_node(&db->SSTABLE_manager_head, 0, &key_val_head);
+            // pthread_mutex_unlock(&sstable_mutex);
+            free_key_val_list(&key_val_head);
+            free_skiplist(item, 4);
+        }
+    }
+    pthread_exit(NULL);
+}

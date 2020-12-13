@@ -31,7 +31,8 @@ void generate_cmd(char* cmd, uint64_t _key) {
     unsigned long long int key;
     char* val = malloc(sizeof(char) * 129);
     // index = rand() % 2;
-    index = 0; // PUT
+    // index = 0; // PUT
+    index = 1; // GET
     if(_key == -1){
         // key = ((uint64_t)rand() << 48) ^ ((uint64_t)rand() << 35) ^ ((uint64_t)rand() << 22) ^ ((uint64_t)rand() << 9) ^ ((uint64_t)rand() << 4);
         key = rand() % ((uint64_t)1 << 20) + 1;
