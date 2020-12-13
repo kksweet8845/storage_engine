@@ -451,6 +451,7 @@ void set_val(skiplist_ptr_t node, char* val){
     strcpy(new_str, val);
     node->valid = 1;
     node->val = new_str;
+    free(val);
 }
 
 
