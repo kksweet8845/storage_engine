@@ -158,6 +158,8 @@ int main(int argc, char* argv[]){
                     printf("Time elapsed %d\n", time(NULL) - sT);
                     sT = time(NULL);
                 }
+                // printf("%s\n", str_buf);
+                // fflush(stdout);
                 // printf("cmd line %llu\n", cmd_num++);
                 switch(parse_cmd(str_buf, &key1, &key2, &value)){
                     case PUT_:
@@ -181,14 +183,14 @@ int main(int argc, char* argv[]){
                         return_val = GET(key1, &db);
                         clock_gettime(CLOCK_MONOTONIC, &G_e);
                         G_ave += diff(G_s, G_e);
-                        // fprintf(out_stream, "%s\n", return_val == NULL ? "EMPTY" : return_val);
+                        fprintf(out_stream, "%s\n", return_val == NULL ? "EMPTY" : return_val);
                         // fflush(out_stream);
                         break;
                     case SCAN_:
-                        // for(uint64_t key=key1;key<=key2;key++){
-                        //     return_val = GET(key, &db);
-                        //     fprintf(out_stream, "%s\n", return_val == NULL ? "EMPTY" : return_val);
-                        // }
+                        for(uint64_t key=key1;key<=key2;key++){
+                            return_val = GET(key, &db);
+                            fprintf(out_stream, "%s\n", return_val == NULL ? "EMPTY" : return_val);
+                        }
                         // printf("SCAN %llu %llu\n", key1, key2);
                         // str_list = scan_skiplist(&skiplist_head, key1, key2);
                         // print_scan(str_list, key1, key2, out_stream);

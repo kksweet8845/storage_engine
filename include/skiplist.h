@@ -105,5 +105,7 @@ void* skiplist_manager(void*);
 
 void free_skiplist(skiplist_meta_ptr_t, int);
 
+void gen_skiplist(struct list_head* skiplist_head, struct list_head* key_val_head, int height);
+
 
 #endif

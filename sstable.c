@@ -825,5 +825,14 @@ void print_sstable_keyranges(struct list_head* sstable_manager_head){
             printf("lv %d, id %d,  keyfrom %llu, keyto %llu\n", item->lv, item->id, item->keyfrom, item->keyto);
         }
     }
+}
 
+void sstable_restore_node(char* dbname, int lv, int id, uint64_t keyfrom, uint64_t keyto, struct list_head* manage_head){
+
+    sstable_node_ptr_t ss_node = create_sstable_node(keyfrom, keyto, id, dbname, lv);
+    sstable_manager_ptr_t manager_item = find_lv(lv, manage_head);
+    list_add(&ss_node->list, &manager_item->sstable_head);
+    manager_item->filenum++;
+    if(id+1 > manager_item->fileIndex)
+        manager_item->fileIndex = id+1;
 }

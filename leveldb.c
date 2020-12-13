@@ -4,7 +4,9 @@
 #include "sstable.h"
 #include "leveldb.h"
 #include "mytime.h"
-
+#include "filename.h"
+#include <sys/stat.h>
+#include <string.h>
 
 #define DEFAULT_SKIPLIST 1
 
@@ -19,9 +21,12 @@
 // }
 
 void init_db(db_impl_ptr_t db, int height){
+
     init_sstable_manager(&db->SSTABLE_manager_head);
-    init_skiplist(&db->SKIPLIST_meta_head, height, DEFAULT_SKIPLIST);
     INIT_LIST_HEAD(&db->SKIPLIST_IMM_meta_head);
+    INIT_LIST_HEAD(&db->SKIPLIST_meta_head);
+    db_prepare(db);
+    init_skiplist(&db->SKIPLIST_meta_head, height, DEFAULT_SKIPLIST);
     db->MAX_IMM_TABLE_NUM = MAX_TABLE_NUM;
     db->CUR_IMM_TABLE_NUM = 0;
     db->MAX_MEMORY_USAGE = (1 << 32);
@@ -190,10 +195,110 @@ void* db_manager(void* arg){
     pthread_exit(NULL);
 }
 
+int file_exists (char *filename) {
+  struct stat buffer;
+  return (stat(filename, &buffer) == 0);
+}
+
+
+
+
+void db_prepare(db_impl_ptr_t db){
+    FILE *fp, *skip_fp;
+    if(file_exists("./storage/SKIPLIST.MANIFEST")){
+
+        fp = fopen("./storage/SKIPLIST.MANIFEST", "r");
+
+        char buf[200];
+        char dbname[50];
+        int immu, num;
+        memset(buf, '\0', 200);
+        memset(dbname, '\0', 50);
+        struct list_head key_val_head;
+        INIT_LIST_HEAD(&key_val_head);
+        while(fscanf(fp, "./storage/%s_skiplist_%d_%d.skp\n",dbname , &immu, &num) != EOF){
+            // generate skiplist
+            sprintf(buf, "./storage/%s_skiplist_%d_%d.skp", dbname, immu, num);
+            printf("%s\n", buf);
+            read_sstable(buf, &key_val_head);
+            if(immu == 1){
+                gen_skiplist(&db->SKIPLIST_IMM_meta_head, &key_val_head, 4);
+            }else {
+                gen_skiplist(&db->SKIPLIST_meta_head, &key_val_head, 4);
+            }
+            memset(buf, '\0', 200);
+            memset(dbname, '\0', 50);
+        }
+
+        fclose(fp);
+    }
+    if(file_exists("./storage/SSTABLE.MANIFEST")){
+        fp = fopen("./storage/SSTABLE.MANIFEST", "r");
+
+        int lv, id;
+        char buf[200];
+        uint64_t keyfrom, keyto;
+        memset(buf, '\0', 200);
+        while(fscanf(fp, "%d %d %s %llu %llu\n", &lv, &id, buf, &keyfrom, &keyto) != EOF){
+            printf("%s\n", buf);
+            sstable_restore_node(NULL, lv, id, keyfrom, keyto, &db->SSTABLE_manager_head);
+            memset(buf, '\0', 200);
+        }
+
+        fclose(fp);
+    }
+}
 
 void db_end(db_impl_ptr_t db) {
     db->end = 1;
     pthread_join(db->db_manager_thread, NULL);
+
+    skiplist_meta_ptr_t meta_item, meta_safe;
+    struct list_head key_val_head;
+    INIT_LIST_HEAD(&key_val_head);
+
+    char** name_list = malloc(sizeof(char*) * 15);
+    uint64_t i=0;
+    list_for_each_entry_safe(meta_item, meta_safe, &db->SKIPLIST_IMM_meta_head, list){
+        INIT_LIST_HEAD(&key_val_head);
+        skiplist_to_keyValPair(meta_item->head, &key_val_head);
+        name_list[i] = skiplist_filename(NULL, 0, i);
+        write_sstable(&key_val_head, name_list[i]);
+        // add_sstable_node(&db->SSTABLE_manager_head, 0, &key_val_head);
+        free_key_val_list(&key_val_head);
+        free_skiplist(meta_item, 4);
+        i++;
+    }
+    uint64_t ii=0;
+    list_for_each_entry_safe(meta_item, meta_safe, &db->SKIPLIST_meta_head, list){
+        INIT_LIST_HEAD(&key_val_head);
+        skiplist_to_keyValPair(meta_item->head, &key_val_head);
+        name_list[i] = skiplist_filename(NULL, 1, ii);
+        write_sstable(&key_val_head, name_list[i]);
+        // add_sstable_node(&db->SSTABLE_manager_head, 0, &key_val_head);
+        free_key_val_list(&key_val_head);
+        free_skiplist(meta_item, 4);
+        i++;
+        ii++;
+    }
+
+    FILE* fp = fopen("./storage/SKIPLIST.MANIFEST", "w");
+    for(uint64_t _i = 0;_i<i;_i++){
+        fprintf(fp, "%s\n", name_list[_i]);
+    }
+    fclose(fp);
+
+    fp = fopen("./storage/SSTABLE.MANIFEST", "w");
+    sstable_manager_ptr_t ss_mana_item;
+    sstable_node_ptr_t ss_node_item;
+    list_for_each_entry(ss_mana_item, &db->SSTABLE_manager_head, list){
+        list_for_each_entry(ss_node_item, &ss_mana_item->sstable_head, list){
+            fprintf(fp, "%d %d %s %llu %llu\n", ss_node_item->lv, ss_node_item->id, ss_node_item->filename, ss_node_item->keyfrom, ss_node_item->keyto);
+        }
+    }
+    fclose(fp);
+    // generate manifest file
+
 }
 
 
