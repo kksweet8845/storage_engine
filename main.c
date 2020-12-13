@@ -62,6 +62,7 @@ extern errno;
 
 int main(int argc, char* argv[]){
 
+
     char* inputFilePath = argv[1];
     FILE* fop = fopen(inputFilePath, "r");
 
