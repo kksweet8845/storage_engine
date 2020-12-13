@@ -19,6 +19,9 @@ static inline char* _strdup(char* str){
 
 void init_skiplist(struct list_head* head, int height, int num){
 
+    if(!list_empty(head))
+        return;
+
     INIT_LIST_HEAD(head);
     // skiplist_meta_ptr_t* skiplists = malloc(sizeof(skiplist_meta_t) * num);
     for(int i=0;i<num;i++){
@@ -539,3 +542,36 @@ void free_skiplist(skiplist_meta_ptr_t node, int height){
     }
     free(node);
 }
+
+
+void gen_skiplist(struct list_head* skiplist_head, struct list_head* key_val_head, int height){
+
+    skiplist_meta_ptr_t skiplist = malloc(sizeof(skiplist_meta_t));
+    INIT_LIST_HEAD(&skiplist->list);
+    skiplist->size = 0;
+    skiplist->immu = 0;
+    skiplist->total_height = height;
+    create_list_head(&skiplist->head, height);
+    // create_list_head(skiplists[i]->head, height);
+    // skiplists[i]->size = 0;
+    list_add_tail(&skiplist->list, skiplist_head);
+    key_val_pair_ptr_t key_val_item;
+    list_for_each_entry(key_val_item, key_val_head, list){
+       int cap = insert(key_val_item->key, key_val_item->val, skiplist->head, skiplist->total_height);
+        skiplist->size += cap;
+    }
+}
+
+// void dump_skiplist(struct list_head* head){
+
+//     skiplist_meta_ptr_t item;
+//     skiplist_ptr_t node_item;
+//     FILE* fp = fopen("./storage/.skiplist.tb", "w");
+
+
+//     list_for_each_entry(item, head, list){
+//         list_for_each_entry(node_item, &item->head[0], list){
+//             fwrite()
+//         }
+//     }
+// }

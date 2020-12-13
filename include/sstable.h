@@ -101,7 +101,7 @@ int get_list_size(struct list_head*);
 
 struct list_head* get_median_node(struct list_head*);
 
-
+void sstable_restore_node(char* dbname, int lv, int id, uint64_t keyfrom, uint64_t keyto, struct list_head* manage_head);
 // debug
 void print_sstable_keyranges(struct list_head* sstable_manager_head);
 #endif

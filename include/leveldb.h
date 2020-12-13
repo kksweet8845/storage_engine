@@ -68,4 +68,6 @@ void* db_manager(void*);
 void db_end(db_impl_ptr_t);
 
 
+void db_prepare(db_impl_ptr_t db);
+
 #endif
