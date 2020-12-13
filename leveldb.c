@@ -35,7 +35,7 @@ void init_db(db_impl_ptr_t db, int height){
     db->sstable_c = 0;
 
     init_mutex();
-    printf("%p\n", db);
+    // printf("%p\n", db);
     pthread_create(&db->db_manager_thread, NULL, db_manager, (void*)db);
 }
 
@@ -142,7 +142,7 @@ char** SCAN(uint64_t key1, uint64_t key2, db_impl_ptr_t db){
 void* db_manager(void* arg){
 
     db_impl_ptr_t db = (db_impl_ptr_t) arg;
-    printf("db manager %p\n", db);
+    // printf("db manager %p\n", db);
     // change skiplist to imm skiplist
 
     // save imm skiplist to sstable
@@ -185,6 +185,7 @@ void* db_manager(void* arg){
             add_sstable_node(&db->SSTABLE_manager_head, 0, &key_val_head);
             pthread_mutex_unlock(&sstable_mutex);
             free_key_val_list(&key_val_head);
+            free_skiplist(item, 4);
         }
     }
     pthread_exit(NULL);
