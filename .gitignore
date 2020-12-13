@@ -1,0 +1,14 @@
+main.dSYM
+sstable_test.dSYM
+input
+log
+db.log
+dump
+main
+*.output
+*.o
+storage
+gt
+gen_data
+sstable_test
+test.zip
