@@ -465,7 +465,7 @@ char* sstable_find_key(struct list_head* manager_head, uint64_t key){
 char* _find_key(uint64_t key, struct list_head* head){
     key_val_pair_ptr_t item;
     list_for_each_entry(item, head, list){
-        if(item->key == key)
+        if(item->key != NULL && item->key == key)
             return item->val;
     }
     return NULL;

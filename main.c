@@ -117,7 +117,9 @@ int main(int argc, char* argv[]){
 
     int32_t offt_times = (statbuf.st_size >> 30) + 1;
 
-    // printf("Total times %d\n", offt_times);
+    // // printf("Total times %d\n", offt_times);
+    struct timespec start;
+    clock_gettime(CLOCK_MONOTONIC, &start);
 
     char* str_buf = malloc(sizeof(char) * 200);
     char* str_cur = str_buf;
@@ -143,7 +145,7 @@ int main(int argc, char* argv[]){
         // memset(str_buf, '\0', 200);
         // printf("buf_size %d\n", buf_size);
         // printf("*ptr %c\n", *ptr);
-        printf("%d\n", buf_size);
+        // printf("%d\n", buf_size);
         while(dx < buf_size){
             dx++;
             // printf("%d/%d\n", dx, buf_size);
@@ -210,6 +212,8 @@ int main(int argc, char* argv[]){
     }
 
     startT = time(NULL);
+    struct timespec end;
+
     // time_t endT;
     // while(fscanf(fop, "%[^\n]\n", cmd) != EOF){
     //     if(i++ % 100000 == 0){
@@ -253,8 +257,9 @@ int main(int argc, char* argv[]){
     //     }
     // }
     // time_t endT = time(NULL);
+    clock_gettime(CLOCK_MONOTONIC, &end);
     db_end(&db);
-    // printf("Execution time %d\n", endT- startT);
+    printf("Execution time %f\n", diff(start, end));
     // // print_skiplist(meta->head, 4);
 
     printf("PUT : %e sec\n", P_ave / P_c);
