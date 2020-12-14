@@ -62,6 +62,7 @@ extern errno;
 
 int main(int argc, char* argv[]){
 
+
     char* inputFilePath = argv[1];
     FILE* fop = fopen(inputFilePath, "r");
 
@@ -117,6 +118,8 @@ int main(int argc, char* argv[]){
     int32_t offt_times = (statbuf.st_size >> 30) + 1;
 
     // printf("Total times %d\n", offt_times);
+    struct timespec start;
+    clock_gettime(CLOCK_MONOTONIC, &start);
 
     char* str_buf = malloc(sizeof(char) * 200);
     char* str_cur = str_buf;
@@ -209,6 +212,8 @@ int main(int argc, char* argv[]){
     }
 
     startT = time(NULL);
+    struct timespec end;
+
     // time_t endT;
     // while(fscanf(fop, "%[^\n]\n", cmd) != EOF){
     //     if(i++ % 100000 == 0){
@@ -252,8 +257,9 @@ int main(int argc, char* argv[]){
     //     }
     // }
     // time_t endT = time(NULL);
+    clock_gettime(CLOCK_MONOTONIC, &end);
     db_end(&db);
-    // printf("Execution time %d\n", endT- startT);
+    printf("Execution time %f\n", diff(start, end));
     // // print_skiplist(meta->head, 4);
 
     printf("PUT : %e sec\n", P_ave / P_c);

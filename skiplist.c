@@ -122,6 +122,9 @@ void skiplist_to_keyValPair(struct list_head* heads, struct list_head* key_val_h
 
     skiplist_ptr_t item;
     list_for_each_entry(item, h, list){
+        if(item->val == NULL){
+            continue;
+        }
         key_val_pair_ptr_t kv = malloc(sizeof(key_val_pair_t));
         INIT_LIST_HEAD(&kv->list);
         kv->key = item->key;
