@@ -13,7 +13,7 @@ char* sstable_filename(char* dbname, int lv, int num){
 char* skiplist_filename(char* dbname, int immu, int num){
     char* buf = malloc(sizeof(char) * 100);
     if(dbname == NULL)
-        dbname = "skiplist";
+        dbname = "default";
     sprintf(buf, "./storage/%s_skiplist_%d_%d.skp", dbname, immu, num);
     return buf;
 }

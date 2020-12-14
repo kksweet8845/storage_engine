@@ -216,10 +216,10 @@ void db_prepare(db_impl_ptr_t db){
         memset(dbname, '\0', 50);
         struct list_head key_val_head;
         INIT_LIST_HEAD(&key_val_head);
-        while(fscanf(fp, "./storage/%s_skiplist_%d_%d.skp\n",dbname , &immu, &num) != EOF){
+        while(fscanf(fp, "./storage/default_skiplist_%d_%d.skp\n", &immu, &num) != EOF){
             // generate skiplist
-            sprintf(buf, "./storage/%s_skiplist_%d_%d.skp", dbname, immu, num);
-            printf("%s\n", buf);
+            sprintf(buf, "./storage/default_skiplist_%d_%d.skp", immu, num);
+            printf("Read %s %d\n", buf, immu);
             read_sstable(buf, &key_val_head);
             if(immu == 1){
                 gen_skiplist(&db->SKIPLIST_IMM_meta_head, &key_val_head, 4);
@@ -228,6 +228,8 @@ void db_prepare(db_impl_ptr_t db){
             }
             memset(buf, '\0', 200);
             memset(dbname, '\0', 50);
+            free_key_val_list(&key_val_head);
+            INIT_LIST_HEAD(&key_val_head);
         }
 
         fclose(fp);
@@ -240,7 +242,7 @@ void db_prepare(db_impl_ptr_t db){
         uint64_t keyfrom, keyto;
         memset(buf, '\0', 200);
         while(fscanf(fp, "%d %d %s %llu %llu\n", &lv, &id, buf, &keyfrom, &keyto) != EOF){
-            printf("%s\n", buf);
+            printf("Read %s %d %d\n", buf, lv, id);
             sstable_restore_node(NULL, lv, id, keyfrom, keyto, &db->SSTABLE_manager_head);
             memset(buf, '\0', 200);
         }
@@ -259,7 +261,7 @@ void db_end(db_impl_ptr_t db) {
 
     char** name_list = malloc(sizeof(char*) * 15);
     uint64_t i=0;
-    list_for_each_entry_safe(meta_item, meta_safe, &db->SKIPLIST_IMM_meta_head, list){
+    list_for_each_entry_safe(meta_item, meta_safe, &db->SKIPLIST_meta_head, list){
         INIT_LIST_HEAD(&key_val_head);
         skiplist_to_keyValPair(meta_item->head, &key_val_head);
         name_list[i] = skiplist_filename(NULL, 0, i);
@@ -270,7 +272,7 @@ void db_end(db_impl_ptr_t db) {
         i++;
     }
     uint64_t ii=0;
-    list_for_each_entry_safe(meta_item, meta_safe, &db->SKIPLIST_meta_head, list){
+    list_for_each_entry_safe(meta_item, meta_safe, &db->SKIPLIST_IMM_meta_head, list){
         INIT_LIST_HEAD(&key_val_head);
         skiplist_to_keyValPair(meta_item->head, &key_val_head);
         name_list[i] = skiplist_filename(NULL, 1, ii);
