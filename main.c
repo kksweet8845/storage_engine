@@ -117,7 +117,7 @@ int main(int argc, char* argv[]){
 
     int32_t offt_times = (statbuf.st_size >> 30) + 1;
 
-    // printf("Total times %d\n", offt_times);
+    // // printf("Total times %d\n", offt_times);
     struct timespec start;
     clock_gettime(CLOCK_MONOTONIC, &start);
 
@@ -145,7 +145,7 @@ int main(int argc, char* argv[]){
         // memset(str_buf, '\0', 200);
         // printf("buf_size %d\n", buf_size);
         // printf("*ptr %c\n", *ptr);
-        printf("%d\n", buf_size);
+        // printf("%d\n", buf_size);
         while(dx < buf_size){
             dx++;
             // printf("%d/%d\n", dx, buf_size);
