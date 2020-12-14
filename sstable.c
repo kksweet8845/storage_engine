@@ -290,7 +290,7 @@ void read_sstable(char* filename, struct list_head* key_val_head){
 
 }
 
-char* _find_key_v2(char* filename, uint64_t target){
+char* _find_key_v2(char* filename, uint64_t target, struct list_head* key_val_head){
     FILE* fp = fopen(filename, "rb");
 
     FILE* fp_cur = fp;
@@ -331,12 +331,12 @@ char* _find_key_v2(char* filename, uint64_t target){
     //     memset(val, '\0', 200);
     //     fread(val, sizeof(char), 128, fp_cur);
     //     // printf("%llu %s\n", key, val);
-    //     key_val_pair_ptr_t node = malloc(sizeof(key_val_pair_t));
+        key_val_pair_ptr_t node = malloc(sizeof(key_val_pair_t));
 
-    //     node->key = key;
-    //     node->val = _strdup(val);
-    //     INIT_LIST_HEAD(&node->list);
-    //     list_add_tail(&node->list, &key_val_head);
+        node->key = key;
+        node->val = _strdup(val);
+        INIT_LIST_HEAD(&node->list);
+        list_add_tail(&node->list, &key_val_head);
     // }
 
     // // check
@@ -348,6 +348,8 @@ char* _find_key_v2(char* filename, uint64_t target){
     //     assert(item->key == data_[_i++].key);
     // }
 
+
+
     char* result;
     for(uint64_t i=0;i<data_offset;i++){
         if(data_[i].key == target){
@@ -355,6 +357,16 @@ char* _find_key_v2(char* filename, uint64_t target){
             result = malloc(sizeof(char) * 129);
             memset(result, '\0', 129);
             strncpy(result, data_[i].val, 128);
+            for(uint64_t j=0;j<data_offset;j++){
+                key_val_pair_ptr_t node = malloc(sizeof(key_val_pair_t));
+                node->key = key;
+                char* tmp = malloc(sizeof(char) * 129);
+                memset(tmp, '\0', 129);
+                strncpy(tmp, data_[j].val, 128);
+                node->val = tmp;
+                INIT_LIST_HEAD(&node->list);
+                list_add_tail(&node->list, &key_val_head);
+            }
             free(data_);
             fclose(fp);
             return result;
@@ -370,16 +382,16 @@ char* _find_key_v2(char* filename, uint64_t target){
     return NULL;
 }
 
-void* find_worker(void* arg){
-    struct tmp {
-        char* filename;
-        uint64_t target;
-    };
-    struct tmp* info = (struct tmp*) arg;
-    // printf("Open file %s\n", info->filename);
-    char* result = _find_key_v2(info->filename, info->target);
-    pthread_exit(result);
-}
+// void* find_worker(void* arg){
+//     struct tmp {
+//         char* filename;
+//         uint64_t target;
+//     };
+//     struct tmp* info = (struct tmp*) arg;
+//     // printf("Open file %s\n", info->filename);
+//     char* result = _find_key_v2(info->filename, info->target);
+//     pthread_exit(result);
+// }
 
 
 char* sstable_find_key(struct list_head* manager_head, uint64_t key){
@@ -408,29 +420,22 @@ char* sstable_find_key(struct list_head* manager_head, uint64_t key){
             // info[i].target = key;
             // pthread_create(&threads[i], NULL, find_worker, &info[i]);
             // printf("Pthread create %llu\n", i);
-            tmp = _find_key_v2(ssNode_item->filename, key);
+            if(ssNode_item->empty == 0){
+                tmp = _find_key(key, &ssNode_item->vec);
+            }else{
+                tmp = _find_key_v2(ssNode_item->filename, key, &ssNode_item->vec);
+            }
             // tmp = _find_key(key, &ssNode_item->vec);
             // i++;
-            if(tmp != NULL)
+            if(tmp != NULL){
+                list_del_init(&ssNode_item->list);
+                list_add(&ssNode_item->list, &mana_item->sstable_head);
+                ssNode_item->empty = 0;
                 return tmp;
+            }
             // printf("sstable %d not found", ssNode_item->id);
         }
     }
-
-    // uint64_t total = i;
-    // printf("Total %llu\n", total);
-    // char** res = malloc(sizeof(char*) * total);
-    // char* final = malloc(sizeof(char) * 129);
-    // memset(final, '\0', 129);
-    // for(uint64_t _=0;_<total;_++){
-    //     printf("Pthread join %llu\n", _);
-    //     pthread_join(threads[_], res[_]);
-    //     if(res[_] != NULL){
-    //         final = res[_];
-    //         free(res);
-    //         return final;
-    //     }
-    // }
     return NULL;
 }
 

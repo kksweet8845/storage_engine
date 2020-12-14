@@ -78,6 +78,7 @@ void read_sstable_and_find(char* filename, struct list_head* sstable_head, uint6
 // find
 char* sstable_find_key(struct list_head* manager_head, uint64_t key);
 char* _find_key(uint64_t key, struct list_head* head);
+char* _find_key_v2(char* filename, uint64_t target, struct list_head* key_val_head);
 sstable_manager_ptr_t find_lv(int lv, struct list_head* sstable_manager_head);
 
 

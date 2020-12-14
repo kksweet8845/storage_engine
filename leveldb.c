@@ -9,7 +9,7 @@
 #include <string.h>
 
 #define DEFAULT_SKIPLIST 1
-
+#define MAXIMUM_CACHE_TABLE
 // void free_key_val_list(struct list_head* head){
 //     key_val_pair_ptr_t item, safe;
 //     list_for_each_entry_safe(item, safe, head, list){
@@ -219,7 +219,7 @@ void db_prepare(db_impl_ptr_t db){
         while(fscanf(fp, "./storage/default_skiplist_%d_%d.skp\n", &immu, &num) != EOF){
             // generate skiplist
             sprintf(buf, "./storage/default_skiplist_%d_%d.skp", immu, num);
-            printf("Read %s %d\n", buf, immu);
+            // printf("Read %s %d\n", buf, immu);
             read_sstable(buf, &key_val_head);
             if(immu == 1){
                 gen_skiplist(&db->SKIPLIST_IMM_meta_head, &key_val_head, 4);
@@ -242,7 +242,7 @@ void db_prepare(db_impl_ptr_t db){
         uint64_t keyfrom, keyto;
         memset(buf, '\0', 200);
         while(fscanf(fp, "%d %d %s %llu %llu\n", &lv, &id, buf, &keyfrom, &keyto) != EOF){
-            printf("Read %s %d %d\n", buf, lv, id);
+            // printf("Read %s %d %d\n", buf, lv, id);
             sstable_restore_node(NULL, lv, id, keyfrom, keyto, &db->SSTABLE_manager_head);
             memset(buf, '\0', 200);
         }
