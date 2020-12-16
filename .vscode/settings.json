@@ -5,6 +5,13 @@
         "iterator": "c",
         "string": "c",
         "unordered_map": "c",
-        "vector": "c"
+        "vector": "c",
+        "__bit_reference": "cpp",
+        "__config": "cpp",
+        "__string": "cpp",
+        "algorithm": "cpp",
+        "bitset": "cpp",
+        "locale": "cpp",
+        "string_view": "cpp"
     }
 }

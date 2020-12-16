@@ -89,11 +89,11 @@ void add_sstable_node(struct list_head* manager_head, int lv, struct list_head* 
                 item->fileIndex, item->dbname, lv);
             // default write to disk, not store in vec
             write_sstable(key_val_head, ss_node->filename);
+            ss_node->empty = 1;
             ss_node->size = get_list_size(key_val_head);
             list_add(&ss_node->list, &item->sstable_head);
             item->filenum++;
             item->fileIndex++;
-            // printf("keyrange %llu -> %llu\n", ss_node->keyfrom, ss_node->keyto);
             break;
         }else{
             // printf("Perform merge\n");
@@ -104,12 +104,6 @@ void add_sstable_node(struct list_head* manager_head, int lv, struct list_head* 
             clock_gettime(CLOCK_MONOTONIC, &end);
             printf("%e sec\n", diff(start, end));
             item->filenum--;
-            // // printf("%d\n", item->filenum);
-            // ss_node = list_last_entry(&item->sstable_head, sstable_node_t, list);
-            // merge_sstable(&ss_node->list, manager_head);
-            // item->filenum--;
-            // printf("%d\n", item->filenum);
-            // sstable_node_ptr_t ss_node;
             min = list_first_entry(key_val_head, key_val_pair_t, list)->key;
             max = list_last_entry(key_val_head, key_val_pair_t, list)->key;
             ss_node = create_sstable_node(
@@ -131,10 +125,8 @@ void add_sstable_node_to_manager(sstable_manager_ptr_t manager, struct list_head
     if(manager->filenum < manager->max_filenum){
         uint64_t min = list_first_entry(key_val_head, key_val_pair_t, list)->key;
         uint64_t max = list_last_entry(key_val_head, key_val_pair_t, list)->key;
-        // printf("Upper min %llu, max %llu\n", min, max);
         min = (min / RANGEBIN) * RANGEBIN + 1;
         max = ((max-1) / RANGEBIN + 1) * RANGEBIN;
-        // printf("Excessive save min %llu, max %llu\n", min, max);
         sstable_node_ptr_t ss_node = create_sstable_node(
             min, max,
             manager->fileIndex, manager->dbname, manager->lv);
@@ -145,7 +137,6 @@ void add_sstable_node_to_manager(sstable_manager_ptr_t manager, struct list_head
         manager->filenum++;
         manager->fileIndex++;
     } else {
-        // printf("Perform merge\n");
         sstable_node_ptr_t ss_node = list_last_entry(&manager->sstable_head, sstable_node_t, list);
         merge_sstable(&ss_node->list, manager_head);
         manager->filenum--;
@@ -160,17 +151,13 @@ void ssave_to_disk(sstable_manager_ptr_t manager, sstable_node_ptr_t node, struc
     INIT_LIST_HEAD(&tmp_head);
     list_del_init(&node->list);
     if(node->size > SSTBALE_DEFAULT_SIZE){
-        // printf("Node size is excessive\n");
-        // perform split operation
         struct list_head* median = get_median_node(&node->vec);
         list_cut_position(&tmp_head, &node->vec, median);
         add_sstable_node_to_manager(manager, &tmp_head, manager_head);
     }
     uint64_t min = list_first_entry(&node->vec, key_val_pair_t, list)->key;
     uint64_t max = list_last_entry(&node->vec, key_val_pair_t, list)->key;
-    // printf("Lower min %llu, max %llu\n", min, max);
     min = (min / RANGEBIN) * RANGEBIN+1;
-    // printf("min = %llu\n", min);
     max = ((max-1) / RANGEBIN + 1) * RANGEBIN;
     node->keyfrom = min;
     node->keyto = max;
@@ -183,15 +170,12 @@ void ssave_to_disk(sstable_manager_ptr_t manager, sstable_node_ptr_t node, struc
 void write_sstable(struct list_head* key_val_head, char* filename){
 
     FILE* fp = fopen(filename, "w");
-    // skiplist_meta_ptr_t item;
     key_val_pair_ptr_t item;
     int nb = 0;
     list_for_each_entry(item, key_val_head, list){
-        // printf("key %llu\n", item->key);
         if(item->val == NULL)
             continue;
         write_data_block(item->key, item->val, fp);
-        // printf("Write %llu %s\n", item->key, item->val);
         nb++;
     }
     // printf("%d\n", nb);
@@ -211,7 +195,6 @@ int write_data_block(uint64_t key, char* val, FILE* stream) {
 int write_footer(uint64_t nb, FILE* stream){
 
     int written_b = fwrite(&nb, 1, sizeof(nb), stream);
-    // written_b += fwrite(&indexing_block, sizeof(indexing_block), 1, stream);
 
     char padding = 0xff;
     while(written_b < FOOTER_FIXED_LENGTH - sizeof(MAGICNUMBER)){
@@ -227,19 +210,15 @@ int write_footer(uint64_t nb, FILE* stream){
 void read_sstable(char* filename, struct list_head* key_val_head){
     FILE* fp = fopen(filename, "rb");
 
+    INIT_LIST_HEAD(key_val_head);
     FILE* fp_cur = fp;
     fseek(fp_cur, -FOOTER_FIXED_LENGTH, SEEK_END);
 
     uint32_t magic_number;
     uint64_t data_offset;
     fread(&data_offset, sizeof(uint64_t), 1, fp_cur);
-    // printf("%llu\n", *(uint64_t*)buffer);
-    // printf("%d\n", FOOTER_FIXED_LENGTH - sizeof(uint32_t));
     fseek(fp_cur, FOOTER_FIXED_LENGTH - sizeof(uint32_t) - sizeof(data_offset), SEEK_CUR);
     fread(&magic_number, sizeof(uint32_t), 1, fp_cur);
-
-    // printf("Read result\n");
-    // printf("data_offset: 0x%x, magic_number: 0x%x\n", data_offset, magic_number);
 
     uint64_t key;
     unsigned char val_len;
@@ -266,25 +245,6 @@ void read_sstable(char* filename, struct list_head* key_val_head){
         list_add_tail(&node->list, key_val_head);
     }
     free(data_);
-    // fseek(fp_cur, 0, SEEK_SET);
-
-    // for(int i=0;i<data_offset;i++){
-    //     fread(&key, 1, sizeof(key), fp_cur);
-    //     printf("%llu %llu\n", key, data_[i].key);
-    //     assert(key == data_[i].key);
-    //     // fread(&val_len, 1, sizeof(val_len), fp_cur);
-    //     // printf("val_len %llu\n", val_len);
-    //     memset(val, '\0', 200);
-    //     fread(val, sizeof(char), 128, fp_cur);
-    //     // printf("%llu %s\n", key, val);
-    //     key_val_pair_ptr_t node = malloc(sizeof(key_val_pair_t));
-
-    //     node->key = key;
-    //     node->val = _strdup(val);
-    //     INIT_LIST_HEAD(&node->list);
-    //     list_add_tail(&node->list, key_val_head);
-    // }
-    // printf("read sstable length %llu\n", data_offset);
     free(val);
     fclose(fp);
 
@@ -298,21 +258,13 @@ char* _find_key_v2(char* filename, uint64_t target, struct list_head* key_val_he
 
     uint32_t magic_number;
     uint64_t data_offset;
-    // char* buffer = malloc(sizeof(char) * 200);
     fread(&data_offset, sizeof(uint64_t), 1, fp_cur);
-    // printf("%llu\n", *(uint64_t*)buffer);
-    // printf("%d\n", FOOTER_FIXED_LENGTH - sizeof(uint32_t));
     fseek(fp_cur, FOOTER_FIXED_LENGTH - sizeof(uint32_t) - sizeof(data_offset), SEEK_CUR);
     fread(&magic_number, sizeof(uint32_t), 1, fp_cur);
-
-    // printf("Read result\n");
-    // printf("data_offset: 0x%x, magic_number: 0x%x\n", data_offset, magic_number);
 
     uint64_t key;
     unsigned char val_len;
     char* val = malloc(sizeof(char)*200);
-    // char* buf = malloc(sizeof(char)*200);
-    // fseek(fp, 0, SEEK_SET);
     fseek(fp_cur, 0, SEEK_SET);
     struct data_block {
         uint64_t key;
@@ -321,34 +273,6 @@ char* _find_key_v2(char* filename, uint64_t target, struct list_head* key_val_he
     // sizeof(&val)
     struct data_block *data_ = malloc(sizeof(struct data_block) * data_offset);
     fread(data_, sizeof(struct data_block), data_offset, fp_cur);
-    // fseek(fp_cur, 0, SEEK_SET);
-    // struct list_head key_val_head;
-    // INIT_LIST_HEAD(&key_val_head);
-    // for(int i=0;i<data_offset;i++){
-    //     fread(&key, 1, sizeof(key), fp_cur);
-    //     // fread(&val_len, 1, sizeof(val_len), fp_cur);
-    //     // printf("val_len %llu\n", val_len);
-    //     memset(val, '\0', 200);
-    //     fread(val, sizeof(char), 128, fp_cur);
-    //     // printf("%llu %s\n", key, val);
-        key_val_pair_ptr_t node = malloc(sizeof(key_val_pair_t));
-
-        node->key = key;
-        node->val = _strdup(val);
-        INIT_LIST_HEAD(&node->list);
-        list_add_tail(&node->list, &key_val_head);
-    // }
-
-    // // check
-    // key_val_pair_ptr_t item;
-    // uint64_t _i = 0;
-    // list_for_each_entry(item, &key_val_head, list){
-    //     // printf("size of data block %d\n", sizeof(struct data_block));
-    //     // printf("%llu , %llu\n", item->key, data_[_i].key);
-    //     assert(item->key == data_[_i++].key);
-    // }
-
-
 
     char* result;
     for(uint64_t i=0;i<data_offset;i++){
@@ -357,15 +281,16 @@ char* _find_key_v2(char* filename, uint64_t target, struct list_head* key_val_he
             result = malloc(sizeof(char) * 129);
             memset(result, '\0', 129);
             strncpy(result, data_[i].val, 128);
+            INIT_LIST_HEAD(key_val_head);
             for(uint64_t j=0;j<data_offset;j++){
                 key_val_pair_ptr_t node = malloc(sizeof(key_val_pair_t));
-                node->key = key;
+                node->key = data_[j].key;
                 char* tmp = malloc(sizeof(char) * 129);
                 memset(tmp, '\0', 129);
                 strncpy(tmp, data_[j].val, 128);
                 node->val = tmp;
                 INIT_LIST_HEAD(&node->list);
-                list_add_tail(&node->list, &key_val_head);
+                list_add_tail(&node->list, key_val_head);
             }
             free(data_);
             fclose(fp);
@@ -382,16 +307,6 @@ char* _find_key_v2(char* filename, uint64_t target, struct list_head* key_val_he
     return NULL;
 }
 
-// void* find_worker(void* arg){
-//     struct tmp {
-//         char* filename;
-//         uint64_t target;
-//     };
-//     struct tmp* info = (struct tmp*) arg;
-//     // printf("Open file %s\n", info->filename);
-//     char* result = _find_key_v2(info->filename, info->target);
-//     pthread_exit(result);
-// }
 
 
 char* sstable_find_key(struct list_head* manager_head, uint64_t key){
@@ -410,56 +325,22 @@ char* sstable_find_key(struct list_head* manager_head, uint64_t key){
         list_for_each_entry(ssNode_item, &mana_item->sstable_head, list){
             if(ssNode_item->keyfrom > key || ssNode_item->keyto < key )
                 continue;
-            // if(ssNode_item->empty == 1){
-            //     read_sstable(ssNode_item->filename, &ssNode_item->vec);
-            //     ssNode_item->empty = 0;
-            //     ssNode_item->size = get_sstable_size(ssNode_item);
-            //     // printf("Read into memory\n");
-            // }
-            // info[i].filename = ssNode_item->filename;
-            // info[i].target = key;
-            // pthread_create(&threads[i], NULL, find_worker, &info[i]);
-            // printf("Pthread create %llu\n", i);
             if(ssNode_item->empty == 0){
                 tmp = _find_key(key, &ssNode_item->vec);
             }else{
                 tmp = _find_key_v2(ssNode_item->filename, key, &ssNode_item->vec);
+                if(tmp != NULL)
+                    ssNode_item->empty = 0;
             }
-            // tmp = _find_key(key, &ssNode_item->vec);
-            // i++;
             if(tmp != NULL){
                 list_del_init(&ssNode_item->list);
                 list_add(&ssNode_item->list, &mana_item->sstable_head);
-                ssNode_item->empty = 0;
                 return tmp;
             }
-            // printf("sstable %d not found", ssNode_item->id);
         }
     }
     return NULL;
 }
-
-
-// void read_sstable_and_find(char* filename, struct list_head* sstable_head, uint64_t key){
-
-// }
-
-// void _read(uint64_t offset, char* filename, uint64_t n, uint64_t target){
-//     FILE * fp = fopen(filename, "r");
-//     uint64_t key;
-//     unsigned char val_len;
-//     char* val;
-//     fseek(fp, offset, SEEK_SET);
-//     fread(&key, 1, sizeof(key), fp);
-//     if(target == key){
-//         fread(&val_len, 1, sizeof(val_len), fp);
-//         val = malloc(sizeof(char) * (n+1));
-//         memset(val, '\0', n+1);
-//         fread(val, sizeof(char), val_len, fp);
-//         pthread_exit(val);
-//     }
-// }
-
 
 
 char* _find_key(uint64_t key, struct list_head* head){
@@ -497,14 +378,8 @@ void merge_sstable(struct list_head* sstable_node, struct list_head* sstable_man
 
     sstable_node_ptr_t merge_item = list_entry(sstable_node, sstable_node_t, list);
     // printf("Bus error %s %p\n", merge_item->filename, merge_item);
-    // sstable_manager_ptr_t cur_lv_manager_item = find_lv(merge_item->lv, sstable_manager_head);
     sstable_manager_ptr_t next_lv_manger_item = find_lv(merge_item->lv+1, sstable_manager_head);
-
-    // if(next_lv_manger_item == NULL){
-    //     create_sstable_manager(sstable_manager_head, merge_item->lv+1, cur_lv_manager_item->max_filenum);
-    //     next_lv_manger_item = find_lv(merge_item->lv+1, sstable_manager_head);
-    // }
-    // printf("Node %s merge to lv %d\n", merge_item->filename, next_lv_manger_item->lv);
+    printf("Node %s merge to lv %d\n", merge_item->filename, next_lv_manger_item->lv);
 
     sstable_node_ptr_t* be_merged_node_arr = NULL;
 
@@ -531,6 +406,7 @@ void merge_sstable(struct list_head* sstable_node, struct list_head* sstable_man
         merge_item->keyfrom = (merge_item->keyfrom / RANGEBIN) * RANGEBIN;
         merge_item->keyto = (merge_item->keyto / RANGEBIN + 1) * RANGEBIN;
         next_lv_manger_item->filenum++;
+        merge_item->empty = 1;
         // printf("Return\n");
         printf("%s\n", merge_item->filename);
         // Need to create a new file or rename the file
@@ -538,74 +414,14 @@ void merge_sstable(struct list_head* sstable_node, struct list_head* sstable_man
     }
     struct list_head overlapped_head;
     INIT_LIST_HEAD(&overlapped_head);
-    // sstable_manager_ptr_t mana_item;
-    // list_for_each_entry(mana_item, sstable_manager_head, list){
-    //     if(mana_item->filenum >= mana_item->max_filenum){
-    //         // printf("GET merged\n");
-    //         sstable_node_ptr_t next_lv_last_node = list_last_entry(&mana_item->sstable_head, sstable_node_t, list);
-    //         merge_sstable(&next_lv_last_node->list, sstable_manager_head);
-    //         mana_item->filenum--;
-    //     }
-    //     if(mana_item->lv > merge_item->lv){
-    //         if(list_empty(&mana_item->sstable_head)){
-    //             update_sstable(mana_item, merge_item, 1);
-    //             list_del_init(&merge_item->list);
-    //             list_add(&merge_item->list, &mana_item->sstable_head);
-    //             merge_item->keyfrom = (merge_item->keyfrom / RANGEBIN) * RANGEBIN;
-    //             merge_item->keyto = (merge_item->keyto / RANGEBIN + 1) * RANGEBIN;
-    //             mana_item->filenum++;
-    //             // printf("Return\n");
-    //             printf("%s\n", merge_item->filename);
-    //             // Need to create a new file or rename the file
-    //             return;
-    //         }
-    //         list_for_each_entry_safe(item, safe, &mana_item->sstable_head, list) {
-    //             // printf("%llu %llu %llu %llu\n", item->keyfrom, item->keyto, merge_item->keyfrom, merge_item->keyto);
-    //             if( is_key_overlap(item->keyfrom, item->keyto, merge_item->keyfrom, merge_item->keyto) ){
-    //                 // list_del_init(&item->list);
-    //                 if(item->empty == 1){
-    //                     read_sstable(item->filename, &item->vec);
-    //                     item->empty = 0;
-    //                 }
-    //                 merge_vec(&item->vec, &merge_item->vec, item->keyfrom, item->keyto);
-    //                 ssave_to_disk(mana_item, item, sstable_manager_head);
-    //                 // list_add(&item->list, )
-    //                 // list_add_tail(&item->list, &overlapped_head);
-    //                 // next_lv_manger_item->filenum--;
-    //             }
-    //         }
-    //     }
-    // }
-    // if(!list_empty(&merge_item->vec)){
-
-    // }
     list_for_each_entry_safe(item, safe, &next_lv_manger_item->sstable_head, list) {
         // printf("%llu %llu %llu %llu\n", item->keyfrom, item->keyto, merge_item->keyfrom, merge_item->keyto);
         if( is_key_overlap(item->keyfrom, item->keyto, merge_item->keyfrom, merge_item->keyto) ){
             list_del_init(&item->list);
-            // if(item->empty == 1){
-            //     read_sstable(item->filename, &item->vec);
-            //     item->empty = 0;
-            // }
-            // merge_vec(&item->vec, &merge_item->vec, item->keyfrom, item->keyto);
-            // ssave_to_disk(next_lv_manger_item, item, sstable_manager_head);
-            // list_add(&item->list, )
             list_add_tail(&item->list, &overlapped_head);
             next_lv_manger_item->filenum--;
         }
     }
-    // if(!list_empty(&merge_item->vec)){
-    //     merge_item->lv += 1;
-    //     printf("Here\n");
-    //     merge_sstable(&merge_item->list, sstable_manager_head);
-    // }else{
-    //     remove(merge_item->filename);
-    //     list_del_init(&merge_item->list);
-    //     free_sstable(merge_item);
-    //     printf("IJIJIJ\n");
-    // }
-
-
 
     remove(merge_item->filename);
     struct list_head vec_head;
@@ -621,6 +437,7 @@ void merge_sstable(struct list_head* sstable_node, struct list_head* sstable_man
         list_del_init(&item->list);
         free_sstable(item);
     }
+
     merge_vec(&merge_item->vec, &vec_head, merge_item->keyfrom, merge_item->keyto);
     struct list_head **ptr;
     key_val_pair_ptr_t vec_item, vec_safe_item;
@@ -668,25 +485,6 @@ void merge_sstable(struct list_head* sstable_node, struct list_head* sstable_man
     remove(merge_item->filename);
     list_del_init(&merge_item->list);
     free_sstable(merge_item);
-    // printf("End of loop of merged\n");
-    // if(!list_empty(&merge_item->vec)){
-    //     uint64_t min = list_first_entry(&merge_item->vec, key_val_pair_t, list)->key;
-    //     uint64_t max = list_last_entry(&merge_item->vec, key_val_pair_t, list)->key;
-    //     merge_item->keyfrom = (min / RANGEBIN) * RANGEBIN + 1;
-    //     merge_item->keyto = ((max-1) / RANGEBIN + 1) * RANGEBIN;
-    //     remove(merge_item->filename);
-    //     update_sstable(next_lv_manger_item, merge_item, 0);
-    //     ssave_to_disk(next_lv_manger_item, merge_item, sstable_manager_head);
-    //     list_del_init(&merge_item->list);
-    //     list_add(&merge_item->list, &next_lv_manger_item->sstable_head);
-    //     next_lv_manger_item->filenum++;
-    // }else {
-    //     // delete the node
-    //     remove(merge_item->filename);
-    //     list_del_init(&merge_item->list);
-    //     free_sstable(merge_item);
-    // }
-    // printf("Finished merged\n");
 }
 
 void merge_vec(struct list_head* vec_from, struct list_head* vec_to, uint64_t keyfrom, uint64_t keyto){
@@ -701,8 +499,6 @@ void merge_vec(struct list_head* vec_from, struct list_head* vec_to, uint64_t ke
             list_add_tail(&item->list, &tmp_head);
         }
     }
-
-
     int left_empty, right_empty;
     struct list_head* left_head, *right_head, *merge_head;
     merge_head = &final_head;
@@ -770,7 +566,7 @@ void update_sstable(sstable_manager_ptr_t manager, sstable_node_ptr_t node, int 
     manager->fileIndex++;
     node->lv = manager->lv;
     // TODO need to update the dbname
-    char* tmp = _strdup(sstable_filename(manager->dbname, manager->lv, node->id));
+    char* tmp = sstable_filename(manager->dbname, manager->lv, node->id);
     if(rn == 1)
         rename(node->filename, tmp);
     node->filename = tmp;

@@ -161,7 +161,7 @@ void create_list_head(struct list_head** heads, int height) {
         // INIT_LIST_HEAD(&(list_heads[i]->list));
         // INIT_LIST_HEAD(&(list_heads[i]->lv));
     }
-    insert_initial_node(list_heads, 1, NULL, height);
+    // insert_initial_node(list_heads, 1, NULL, height);
     // int next, prev;
     // for(int i=0;i<height;i++){
     //     next = i-1 >= 0 ? i-1 : i-1+height;
@@ -178,40 +178,45 @@ int insert(uint64_t key, char* val, struct list_head* heads, int height){
     skiplist_ptr_t cur, item, next_item;
     int64_t diff;
     int status;
-
-    // initially
-    if(list_empty(&heads[height-1])){
-        insert_initial_node(heads, key, val, height);
-        return 0;
+    int size = 0;
+    // next_item = find_closest(heads, heads[height-1].next, key, height-1, &status, 0);
+    struct list_head** prev = malloc(sizeof(struct list_head*) * height);
+    struct list_head* node = find_greater_or_equal(heads, key, height-1, prev);
+    item = node != &heads[0] ? list_entry(node, skiplist_node_t, list) : NULL;
+    if(item != NULL && item->key == key){
+        update_node(item, val);
+        size = 0;
+    }else{
+        insert_new_node_prev(heads, key, val, height, prev);
+        size = 136;
     }
-    next_item = find_closest(heads, heads[height-1].next, key, height-1, &status, 0);
-    // item = find_greater_or_equal(heads, key, height-1);
-
+    free(prev);
+    // print_skiplist(heads, 4);
+    // check_skiplist_consistence(heads, 4);
     // if(item == NULL){
 
     // }
-    if(next_item == NULL){
-        printf("Wrong algorithm!\n");
-        return 1;
-    }else {
-        switch(status){
-            case NEXT:
-                // create a new node and insert before it
-                insert_new_node(heads, key, val, height);
-                // insert_initial_node(heads, key, val, height);
-                return 138;
-            case EQUAL:
-                // update the node
-                update_node(next_item, val);
-                return 0;
-            case PREV:
-                // create a new node and insert behind it
-                insert_new_node(heads, key, val, height);
-                return 138;
-        }
-    }
-    return 0;
-
+    // if(next_item == NULL){
+    //     printf("Wrong algorithm!\n");
+    //     return 1;
+    // }else {
+    //     switch(status){
+    //         case NEXT:
+    //             // create a new node and insert before it
+    //             insert_new_node(heads, key, val, height);
+    //             // insert_initial_node(heads, key, val, height);
+    //             return 138;
+    //         case EQUAL:
+    //             // update the node
+    //             update_node(next_item, val);
+    //             return 0;
+    //         case PREV:
+    //             // create a new node and insert behind it
+    //             insert_new_node(heads, key, val, height);
+    //             return 138;
+    //     }
+    // }
+    return size;
 }
 // TODO Not finished
 skiplist_ptr_t find(struct list_head* heads, uint64_t key, int total_height){
@@ -220,19 +225,26 @@ skiplist_ptr_t find(struct list_head* heads, uint64_t key, int total_height){
     int status;
 
     item = find_closest(heads, heads[total_height-1].next, key, total_height-1, &status, 0);
-    if(item == NULL){
-        printf("Wrong algorithm!\n");
+    struct list_head* node = find_greater_or_equal(heads, key, total_height-1, NULL);
+    if(node == &heads[0]){
         return NULL;
-    }else {
-        switch(status){
-            case NEXT:
-                return item;
-            case EQUAL:
-                return item;
-            case PREV:
-                return item;
-        }
+    } else {
+        item = list_entry(node, skiplist_node_t, list);
+        return item;
     }
+    // if(item == NULL){
+    //     printf("Wrong algorithm!\n");
+    //     return NULL;
+    // }else {
+    //     switch(status){
+    //         case NEXT:
+    //             return item;
+    //         case EQUAL:
+    //             return item;
+    //         case PREV:
+    //             return item;
+    //     }
+    // }
     return NULL;
 }
 
@@ -241,28 +253,36 @@ skiplist_ptr_t find_exactly(struct list_head* heads, uint64_t key, int total_hei
 
     int status;
 
-    item = find_closest(heads, heads[total_height-1].next, key, total_height-1, &status, 0);
-    if(item == NULL){
-        printf("Wrong algorithm!\n");
+    // item = find_closest(heads, heads[total_height-1].next, key, total_height-1, &status, 0);
+    struct list_head* node = find_greater_or_equal(heads, key, total_height-1, NULL);
+    if(node == &heads[0]){
         return NULL;
-    }else {
-        switch(status){
-            case NEXT:
-                return NULL;
-            case EQUAL:
-                return item;
-            case PREV:
-                return NULL;
-        }
+    } else {
+        item = list_entry(node, skiplist_node_t, list);
+        if(item->key == key)
+            return item;
+        else return NULL;
     }
+    // if(item == NULL){
+    //     printf("Wrong algorithm!\n");
+    //     return NULL;
+    // }else {
+    //     switch(status){
+    //         case NEXT:
+    //             return NULL;
+    //         case EQUAL:
+    //             return item;
+    //         case PREV:
+    //             return NULL;
+    //     }
+    // }
     return NULL;
 }
 
 
-skiplist_ptr_t find_greater_or_equal(
+struct list_head* find_greater_or_equal(
     struct list_head* heads,
     const uint64_t key, int index, struct list_head** prev){
-
 
     skiplist_ptr_t entry, next_entry;
     struct list_head* x = &heads[index];
@@ -276,13 +296,13 @@ skiplist_ptr_t find_greater_or_equal(
             if(prev != NULL) prev[index] = x;
             if(index == 0){
                 return next;
-                return next == &heads[index] ? NULL : next;
             } else {
                 if(x == &heads[index--])
                     x = &heads[index];
                 else{
                     entry = list_entry(x, skiplist_node_t, list);
-                    x = entry->lv.next;
+                    entry = list_entry(entry->lv.next, skiplist_node_t, lv);
+                    x = &entry->list;
                 }
             }
         }
@@ -398,6 +418,22 @@ void insert_initial_node(struct list_head* heads, uint64_t key, char* val, int t
     // list_for_each_entry(item, &lv_head, lv){
     //     printf("height: %d, %llu, %s\n", --i, item->key, item->val);
     // }
+    lv_head.next->prev = lv_head.prev;
+    lv_head.prev->next = lv_head.next;
+}
+
+
+void insert_new_node_prev(struct list_head* heads, uint64_t key, char* val, int total_height, struct list_head** prev){
+    int max_height = get_possibility(total_height);
+    struct list_head lv_head;
+    INIT_LIST_HEAD(&lv_head);
+
+    skiplist_ptr_t new_node;
+    for(int i=0;i<max_height;i++){
+        create_new_node(&new_node, key, val, total_height, i);
+        insert_after_node(&new_node->list, prev[i]);
+        list_add(&new_node->lv, &lv_head);
+    }
     lv_head.next->prev = lv_head.prev;
     lv_head.prev->next = lv_head.next;
 }
@@ -554,7 +590,7 @@ void gen_skiplist(struct list_head* skiplist_head, struct list_head* key_val_hea
     skiplist->size = 0;
     skiplist->immu = 0;
     skiplist->total_height = height;
-    create_list_head(&skiplist->head, height);
+    create_list_head(&skiplist->head, height); // initialize the intiial 1
     // create_list_head(skiplists[i]->head, height);
     // skiplists[i]->size = 0;
     list_add_tail(&skiplist->list, skiplist_head);

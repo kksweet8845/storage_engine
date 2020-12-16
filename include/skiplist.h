@@ -84,13 +84,14 @@ void create_list_head(struct list_head**, int);
 int insert(uint64_t, char*, struct list_head*, int);
 skiplist_ptr_t find(struct list_head*, uint64_t, int);
 skiplist_ptr_t find_exactly(struct list_head*, uint64_t, int);
-
+struct list_head* find_greater_or_equal(struct list_head* heads, const uint64_t key, int index, struct list_head** prev);
 // utils
 skiplist_ptr_t find_closest(struct list_head*, struct list_head*, const uint64_t, int, int*, int);
 void update_node(skiplist_ptr_t, char*);
 void create_new_node(skiplist_ptr_t*, uint64_t key, char* val, int total_height, int cur_height);
 void insert_initial_node(struct list_head* heads, uint64_t key, char* val, int total_height);
 void insert_new_node(struct list_head*, uint64_t , char*, int);
+void insert_new_node_prev(struct list_head* heads, uint64_t key, char* val, int total_height, struct list_head** prev);
 // void find_and_insert(struct list_head*, )
 void set_val(skiplist_ptr_t, char*);
 int get_possibility(int);

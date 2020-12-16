@@ -63,6 +63,7 @@ extern errno;
 int main(int argc, char* argv[]){
 
 
+    printf("Entring\n");
     char* inputFilePath = argv[1];
     FILE* fop = fopen(inputFilePath, "r");
 
@@ -145,7 +146,6 @@ int main(int argc, char* argv[]){
         // memset(str_buf, '\0', 200);
         // printf("buf_size %d\n", buf_size);
         // printf("*ptr %c\n", *ptr);
-        // printf("%d\n", buf_size);
         while(dx < buf_size){
             dx++;
             // printf("%d/%d\n", dx, buf_size);
